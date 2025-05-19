@@ -10,11 +10,14 @@ This project uses real permit data from Seattle’s open data portal to analyze 
 - Includes an interactive version via Streamlit
 
 ## Tools Used
-- Python
+- Python 3.9.6
 - pandas
 - matplotlib
 - seaborn
 - Streamlit
+
+## Software
+-Visual Studio
 
 ## Dataset Source
 https://data.seattle.gov/Built-Environment/Building-Permits/76t5-zqzr
