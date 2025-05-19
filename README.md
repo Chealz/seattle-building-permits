@@ -17,7 +17,7 @@ This project uses real permit data from Seattle’s open data portal to analyze 
 - Streamlit
 
 ## Streamlit app
-- http://localhost:8502/#permits-issued-per-year
+- http://10.0.0.232:8501
 
 ## Software
 -Visual Studio
