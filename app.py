@@ -91,6 +91,11 @@ def fetch_from_api() -> pd.DataFrame:
             break
         offset += PAGE_SIZE
 
+    if not pages:
+        # API reachable but returned no rows — treat as an empty dataset
+        # rather than letting pd.concat([]) raise.
+        return pd.DataFrame(columns=list(FIELDS.values()))
+
     df = pd.concat(pages, ignore_index=True).rename(columns=FIELDS)
     # Socrata omits fields that are null in every returned record
     return df.reindex(columns=list(FIELDS.values()))
@@ -114,6 +119,7 @@ def load_data() -> tuple[pd.DataFrame, str]:
     df["Year"] = df["IssuedDate"].dt.year
     df["Month"] = df["IssuedDate"].dt.to_period("M").dt.to_timestamp()
     df["PermitClassMapped"] = df["PermitClassMapped"].fillna("Unknown")
+    df["PermitTypeMapped"] = df["PermitTypeMapped"].fillna("Unknown")
     return df, source
 
 
