@@ -4,7 +4,7 @@ An interactive Streamlit dashboard analyzing 20+ years of Seattle construction a
 
 **Live demo:** [seattle-building-permits.streamlit.app](https://seattle-building-permits-djrvb3zjo9cqf9temkqrht.streamlit.app)
 
-![Dashboard screenshot](streamlit.png)
+![Dashboard screenshot](dashboard.png)
 
 ## What it does
 
