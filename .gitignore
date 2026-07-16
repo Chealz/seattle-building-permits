@@ -3,4 +3,5 @@ push_once.sh
 __pycache__/
 .DS_Store
 Building_Permits.csv
+permits_snapshot.pkl
 *.docx

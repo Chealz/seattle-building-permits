@@ -1,4 +1,5 @@
 import os
+import time
 
 import pandas as pd
 import plotly.express as px
@@ -37,6 +38,9 @@ st.markdown(
 # ------------------------------------------------
 API_URL = "https://data.seattle.gov/resource/76t5-zqzr.json"
 LOCAL_CSV = "Building_Permits.csv"
+# Written after every successful API fetch; used as a fallback so a Socrata
+# outage serves yesterday's data instead of crashing the deployed app.
+SNAPSHOT = "permits_snapshot.pkl"
 
 # API (lowercase) -> app column names
 FIELDS = {
@@ -62,9 +66,21 @@ NUMERIC_COLS = [
 PAGE_SIZE = 50_000
 
 
-def fetch_from_api() -> pd.DataFrame:
-    """Page through the full dataset via SoQL. An app token isn't required,
-    but setting the SOCRATA_APP_TOKEN env var avoids throttling."""
+def fetch_from_api(retries: int = 3) -> pd.DataFrame:
+    """Page through the full dataset via SoQL, retrying transient failures.
+    An app token isn't required, but setting the SOCRATA_APP_TOKEN env var
+    avoids throttling."""
+    last_err: Exception | None = None
+    for attempt in range(retries):
+        try:
+            return _fetch_all_pages()
+        except Exception as err:  # noqa: BLE001 - retry any transient failure
+            last_err = err
+            time.sleep(2 ** attempt)
+    raise last_err
+
+
+def _fetch_all_pages() -> pd.DataFrame:
     headers = {}
     if token := os.environ.get("SOCRATA_APP_TOKEN"):
         headers["X-App-Token"] = token
@@ -106,11 +122,21 @@ def load_data() -> tuple[pd.DataFrame, str]:
     try:
         df = fetch_from_api()
         source = "Live API"
+        try:
+            df.to_pickle(SNAPSHOT)
+        except OSError:
+            pass  # read-only or full disk - snapshot is best-effort
     except Exception:
-        if not os.path.exists(LOCAL_CSV):
+        if os.path.exists(SNAPSHOT):
+            df = pd.read_pickle(SNAPSHOT)
+            source = "Cached snapshot (API unavailable)"
+        elif os.path.exists(LOCAL_CSV):
+            df = pd.read_csv(
+                LOCAL_CSV, low_memory=False, usecols=list(FIELDS.values())
+            )
+            source = "Local CSV (API unavailable)"
+        else:
             raise
-        df = pd.read_csv(LOCAL_CSV, low_memory=False, usecols=list(FIELDS.values()))
-        source = "Local CSV (API unavailable)"
 
     for col in NUMERIC_COLS:
         df[col] = pd.to_numeric(df[col], errors="coerce")
@@ -123,7 +149,14 @@ def load_data() -> tuple[pd.DataFrame, str]:
     return df, source
 
 
-df, data_source = load_data()
+try:
+    df, data_source = load_data()
+except Exception:
+    st.error(
+        "😕 The Seattle Open Data API is temporarily unavailable and no "
+        "cached copy exists yet. Please refresh in a few minutes."
+    )
+    st.stop()
 st.caption(
     f"Source: {data_source} · Latest permit issued "
     f"{df['IssuedDate'].max():%b %d, %Y} · {len(df):,} permits"
